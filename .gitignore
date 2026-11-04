@@ -1,0 +1,16 @@
+# Back-end (Maven)
+backend/target/
+backend/dados/
+
+# Front-end (Angular)
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/out-tsc/
+
+# IDEs e sistema
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db

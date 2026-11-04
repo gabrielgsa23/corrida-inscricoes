@@ -1,0 +1,5 @@
+# Normaliza quebras de linha. O mvnw precisa de LF (Linux/Mac) e o mvnw.cmd de CRLF (Windows).
+* text=auto
+mvnw text eol=lf
+*.cmd text eol=crlf
+*.png binary
