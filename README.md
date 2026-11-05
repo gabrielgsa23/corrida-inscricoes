@@ -103,6 +103,10 @@ Premissas adotadas:
 - "Hoje" é o dia em Brasília (`corrida.fuso`), para o servidor em UTC não adiantar a data à noite.
 - Quem nasceu em 29/02 completa idade em 01/03 nos anos não bissextos.
 - Na edição, o 404 é verificado antes da validação dos dados.
+- Entradas atípicas: o espaço "não separável" (U+00A0) de textos copiados da web e o tab ou quebra de linha no nome são tratados como espaço comum; e-mail em minúsculas independe do idioma do computador.
+- E-mail: sem ponto no início, no fim ou repetido antes do `@`, no máximo 64 caracteres antes do `@` e 254 no total.
+- Percurso exige exatamente `KM_5` ou `KM_10` (o contrato fixa os valores; `km_5` é recusado com mensagem clara).
+- Campos a mais no JSON (como `categoria` ou `idadeNaProva`) são ignorados; número ou lista no lugar de texto devolve 400, nunca 500.
 
 ## Fora de escopo
 

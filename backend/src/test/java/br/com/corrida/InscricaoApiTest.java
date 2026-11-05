@@ -179,6 +179,34 @@ class InscricaoApiTest {
                 .andExpect(jsonPath("$.mensagem").value("Rota não encontrada."));
     }
 
+    @Test
+    void numeroOuListaNoLugarDeTextoNuncaDevolvem500() throws Exception {
+        // Número onde se espera texto: o Jackson converte para "123" e a validação recusa o nome.
+        enviar("{\"nome\": 123, \"email\": \"ana@email.com\", \"dataNascimento\": \"1990-05-20\", \"percurso\": \"KM_5\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensagem").value("O nome deve conter apenas letras, espaços, apóstrofos e hífens."));
+
+        // Lista onde se espera texto: não dá para converter, então o corpo é considerado inválido.
+        enviar("{\"nome\": [1, 2], \"email\": \"ana@email.com\", \"dataNascimento\": \"1990-05-20\", \"percurso\": \"KM_5\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensagem").value("O corpo da requisição está vazio ou não é um JSON válido."));
+    }
+
+    @Test
+    void camposAMaisNoJsonSaoIgnoradosEIdadeECategoriaSaoSempreCalculadas() throws Exception {
+        // O cliente tenta impor categoria e idade: nada disso entra, o sistema calcula.
+        enviar("{\"nome\": \"Ana Souza\", \"email\": \"ana@email.com\", \"dataNascimento\": \"1990-05-20\","
+                + " \"percurso\": \"KM_5\", \"categoria\": \"JUVENIL\", \"idadeNaProva\": 5, \"id\": 99}")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.categoria").value("ADULTO"))
+                .andExpect(jsonPath("$.idadeNaProva").value(36));
+    }
+
+    @Test
+    void corpoNullDevolve400() throws Exception {
+        enviar("null").andExpect(status().isBadRequest());
+    }
+
     // ---------- auxiliares ----------
 
     private ResultActions cadastrar(String nome, String email, String nascimento, String percurso) throws Exception {
@@ -192,6 +220,11 @@ class InscricaoApiTest {
         return mvc.perform(put("/api/inscricoes/" + emailDaUrl)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(nome, emailNoCorpo, nascimento, percurso)));
+    }
+
+    /** Envia um corpo JSON qualquer (inclusive inválido) para o cadastro. */
+    private ResultActions enviar(String corpo) throws Exception {
+        return mvc.perform(post("/api/inscricoes").contentType(MediaType.APPLICATION_JSON).content(corpo));
     }
 
     private static String json(String nome, String email, String nascimento, String percurso) {

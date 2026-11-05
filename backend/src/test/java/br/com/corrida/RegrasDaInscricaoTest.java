@@ -9,9 +9,11 @@ import br.com.corrida.RegrasDaInscricao.Percurso;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Testes das regras puras, sem Spring: cada teste roda em milissegundos.
@@ -153,7 +155,86 @@ class RegrasDaInscricaoTest {
 
     @Test
     void percursoDesconhecidoERecusado() {
-        assertEquals("O percurso deve ser KM_5 ou KM_10.", recusa("Ana Souza", "ana@email.com", "1990-05-20", "KM_7"));
+        String mensagem = "O percurso deve ser exatamente KM_5 ou KM_10.";
+        assertEquals(mensagem, recusa("Ana Souza", "ana@email.com", "1990-05-20", "KM_7"));
+        // O contrato fixa os valores exatos: minúsculas não são aceitas.
+        assertEquals(mensagem, recusa("Ana Souza", "ana@email.com", "1990-05-20", "km_5"));
+    }
+
+    // ---------- entradas atípicas ----------
+
+    @ParameterizedTest(name = "e-mail recusado: {0}")
+    @ValueSource(strings = {
+            ".ana@email.com",        // começa com ponto
+            "ana.@email.com",        // ponto antes do @
+            "ana..souza@email.com",  // dois pontos seguidos
+            "ana@.email.com",        // domínio começa com ponto
+            "ana@email..com",        // dois pontos seguidos no domínio
+            "ana@-email.com",        // hífen no começo do rótulo
+            "ana@email-.com",        // hífen no fim do rótulo
+            "@email.com",            // sem parte local
+            "ana@@email.com",        // dois @
+            "ana@email.c",           // terminação com 1 letra
+            "ana souza@email.com",   // espaço no meio
+    })
+    void emailForaDoFormatoERecusado(String email) {
+        assertEquals("Informe um e-mail válido.", recusa("Ana Souza", email, "1990-05-20", "KM_5"));
+    }
+
+    @ParameterizedTest(name = "e-mail aceito: {0}")
+    @ValueSource(strings = {
+            "ana.souza@email.com",
+            "joao+corrida@gmail.com",
+            "a_b-c%d@sub-dominio.email.com.br",
+            "x@y.io",
+    })
+    void emailsComumSaoAceitos(String email) {
+        assertEquals(email, regras.validar("Ana Souza", email, "1990-05-20", "KM_5").email());
+    }
+
+    @Test
+    void emailComTamanhoAcimaDoPermitidoERecusado() {
+        String mensagem = "Informe um e-mail válido.";
+        assertEquals(mensagem, recusa("Ana Souza", "a".repeat(65) + "@email.com", "1990-05-20", "KM_5")); // local > 64
+        assertEquals(mensagem, recusa("Ana Souza", "a@" + "b".repeat(250) + ".com", "1990-05-20", "KM_5")); // total > 254
+    }
+
+    @Test
+    void espacoNaoSeparavelDeTextoCopiadoDaWebEhRemovidoDasPontas() {
+        // U+00A0 é o espaço que o trim() do Java não enxerga.
+        String nbsp = "\u00A0";
+        DadosValidos dados = regras.validar(
+                nbsp + "Ana" + nbsp + "Souza" + nbsp,
+                nbsp + "Ana@Email.com" + nbsp,
+                nbsp + "1990-05-20" + nbsp,
+                nbsp + "KM_5" + nbsp);
+
+        assertEquals("Ana Souza", dados.nome());
+        assertEquals("ana@email.com", dados.email());
+        assertEquals(LocalDate.of(1990, 5, 20), dados.dataNascimento());
+        assertEquals(Percurso.KM_5, dados.percurso());
+    }
+
+    @Test
+    void tabEQuebraDeLinhaNoNomeViramUmEspaco() {
+        assertEquals("Ana Souza Lima", regras.validar("Ana\tSouza\n  Lima", "ana@email.com", "1990-05-20", "KM_5").nome());
+    }
+
+    @Test
+    void emailEmMinusculasNaoDependeDoIdiomaDoComputador() {
+        Locale original = Locale.getDefault();
+        try {
+            // No turco, "I".toLowerCase() sem Locale.ROOT daria "ı" (i sem ponto).
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+            assertEquals("info@email.com", RegrasDaInscricao.normalizarEmail("INFO@EMAIL.COM"));
+        } finally {
+            Locale.setDefault(original);
+        }
+    }
+
+    @Test
+    void textoNuloEmTodosOsCamposViraRecusaECampoObrigatorio() {
+        assertEquals("O nome é obrigatório.", recusa(null, null, null, null));
     }
 
     // ---------- auxiliares ----------

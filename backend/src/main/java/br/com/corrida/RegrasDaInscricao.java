@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.format.DateTimeParseException;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
@@ -55,11 +56,20 @@ public class RegrasDaInscricao {
     private static final Pattern NOME_VALIDO =
             Pattern.compile("[\\p{L}\\p{M}]+(?:[ '’-][\\p{L}\\p{M}]+)*");
 
-    // E-mail (já em minúsculas): parte local, @, domínio com pelo menos um ponto
-    // e terminação de 2+ letras. Simples de propósito: o objetivo é barrar erro de
-    // digitação ("ana@email", "ana email.com"), não implementar a RFC inteira.
-    private static final Pattern EMAIL_VALIDO =
-            Pattern.compile("[a-z0-9._%+-]+@[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.[a-z]{2,}");
+    // E-mail (já em minúsculas), no formato parte-local@dominio.
+    //   parte local: blocos de letras/números/_%+- separados por UM ponto, então
+    //                ".ana@x.com", "ana.@x.com" e "ana..souza@x.com" são recusados;
+    //   domínio: rótulos sem hífen nas pontas, separados por ponto, terminando em
+    //            2+ letras ("ana@email", "ana@x..com" e "ana@-x.com" são recusados).
+    // Simples de propósito: o objetivo é barrar erro de digitação, não a RFC inteira.
+    private static final Pattern EMAIL_VALIDO = Pattern.compile(
+            "[a-z0-9_%+-]+(?:\\.[a-z0-9_%+-]+)*"
+                    + "@[a-z0-9]+(?:-[a-z0-9]+)*(?:\\.[a-z0-9]+(?:-[a-z0-9]+)*)*\\.[a-z]{2,}");
+
+    // Tamanhos máximos de um e-mail real (RFC 5321): 64 antes do @ e 254 no total.
+    // 254 também é o tamanho da coluna no banco.
+    private static final int EMAIL_LOCAL_MAX = 64;
+    private static final int EMAIL_MAX = 254;
 
     private final LocalDate dataProva;
 
@@ -98,14 +108,28 @@ public class RegrasDaInscricao {
     // Normalização (pública porque o service também usa para buscar pelo e-mail da URL)
     // ------------------------------------------------------------------
 
-    /** " Ana.Souza@Email.COM " vira "ana.souza@email.com". É assim que o e-mail vira chave. */
+    /**
+     * " Ana.Souza@Email.COM " vira "ana.souza@email.com". É assim que o e-mail vira chave.
+     * Locale.ROOT faz a conversão para minúsculas ser igual em qualquer computador: sem ele,
+     * num Windows configurado em turco, o "I" maiúsculo viraria "ı" (i sem ponto).
+     */
     public static String normalizarEmail(String email) {
-        return email == null ? "" : email.trim().toLowerCase();
+        return aparar(email).toLowerCase(Locale.ROOT);
     }
 
     /** Tira espaços das pontas e troca qualquer sequência de espaços internos por um só. */
     static String normalizarNome(String nome) {
-        return nome == null ? "" : nome.trim().replaceAll("\\s+", " ");
+        return aparar(nome).replaceAll("(?U)\\s+", " ");
+    }
+
+    /**
+     * Remove os espaços das pontas, inclusive o espaço "não separável" (U+00A0) que vem
+     * junto quando o texto é copiado de páginas web, PDFs ou do Word. O trim() do Java
+     * só conhece o espaço comum, e o (?U) ensina o \s a reconhecer os espaços Unicode.
+     * Texto nulo vira "", então o resto do código não precisa checar null.
+     */
+    private static String aparar(String texto) {
+        return texto == null ? "" : texto.replaceAll("(?U)^\\s+|\\s+$", "");
     }
 
     // ------------------------------------------------------------------
@@ -183,15 +207,18 @@ public class RegrasDaInscricao {
         if (limpo.isEmpty()) {
             throw InscricaoRecusada.dadosInvalidos("O e-mail é obrigatório.");
         }
-        // 254 é o tamanho máximo de um e-mail real; também é o tamanho da coluna no banco.
-        if (limpo.length() > 254 || !EMAIL_VALIDO.matcher(limpo).matches()) {
+        // Os tamanhos são conferidos ANTES da regex, para um texto gigante nem chegar a ela.
+        if (limpo.length() > EMAIL_MAX
+                || limpo.indexOf('@') > EMAIL_LOCAL_MAX
+                || !EMAIL_VALIDO.matcher(limpo).matches()) {
             throw InscricaoRecusada.dadosInvalidos("Informe um e-mail válido.");
         }
         return limpo;
     }
 
     private LocalDate validarNascimento(String dataNascimento) {
-        if (dataNascimento == null || dataNascimento.isBlank()) {
+        String texto = aparar(dataNascimento);
+        if (texto.isEmpty()) {
             throw InscricaoRecusada.dadosInvalidos("A data de nascimento é obrigatória.");
         }
 
@@ -200,7 +227,7 @@ public class RegrasDaInscricao {
         // LocalDate não tem hora nem fuso, então a data nunca "volta um dia".
         LocalDate data;
         try {
-            data = LocalDate.parse(dataNascimento.trim());
+            data = LocalDate.parse(texto);
         } catch (DateTimeParseException e) {
             throw InscricaoRecusada.dadosInvalidos(
                     "A data de nascimento deve ser uma data existente no formato aaaa-mm-dd.");
@@ -217,14 +244,16 @@ public class RegrasDaInscricao {
     }
 
     private Percurso validarPercurso(String percurso) {
-        if (percurso == null || percurso.isBlank()) {
+        String texto = aparar(percurso);
+        if (texto.isEmpty()) {
             throw InscricaoRecusada.dadosInvalidos("O percurso é obrigatório.");
         }
         try {
-            // valueOf("KM_5") devolve Percurso.KM_5; qualquer outro texto lança exceção.
-            return Percurso.valueOf(percurso.trim());
+            // valueOf("KM_5") devolve Percurso.KM_5; qualquer outro texto lança exceção,
+            // inclusive "km_5": o contrato fixa os valores exatos KM_5 e KM_10.
+            return Percurso.valueOf(texto);
         } catch (IllegalArgumentException e) {
-            throw InscricaoRecusada.dadosInvalidos("O percurso deve ser KM_5 ou KM_10.");
+            throw InscricaoRecusada.dadosInvalidos("O percurso deve ser exatamente KM_5 ou KM_10.");
         }
     }
 }
