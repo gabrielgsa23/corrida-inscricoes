@@ -1,4 +1,4 @@
-package br.com.corrida;
+package br.com.corrida.controller;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import br.com.corrida.repository.InscricaoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,12 +32,12 @@ class InscricaoApiTest {
     private MockMvc mvc;
 
     @Autowired
-    private InscricaoRepository repositorio;
+    private InscricaoRepository repository;
 
     // A aplicação sobe uma vez para todos os testes, então limpamos o banco antes de cada um.
     @BeforeEach
     void limparBanco() {
-        repositorio.deleteAll();
+        repository.deleteAll();
     }
 
     @Test
@@ -80,6 +81,13 @@ class InscricaoApiTest {
         cadastrar("Júlia Marta", "julia@email.com", "2014-06-01", "KM_10")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.mensagem").value("A idade mínima para participar é 14 anos."));
+    }
+
+    @Test
+    void recusa29DeFevereiroEmAnoNaoBissextoComMensagemPropria() throws Exception {
+        cadastrar("Júlia Marta", "julia@email.com", "2001-02-29", "KM_5")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensagem").value("A data 29/02 só existe em ano bissexto, e 2001 não é bissexto."));
     }
 
     @Test

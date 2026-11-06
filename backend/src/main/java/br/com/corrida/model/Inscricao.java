@@ -1,7 +1,6 @@
-package br.com.corrida;
+package br.com.corrida.model;
 
-import br.com.corrida.RegrasDaInscricao.DadosValidos;
-import br.com.corrida.RegrasDaInscricao.Percurso;
+import br.com.corrida.enums.Percurso;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,8 +15,8 @@ import java.time.LocalDate;
  * O Hibernate cria a tabela sozinho a partir desta classe (ddl-auto no application.properties).
  *
  * Só os quatro campos de entrada são gravados. Idade na prova e categoria NÃO são colunas:
- * são calculadas na hora de montar a resposta, a partir do nascimento. Assim, se a data
- * da prova mudar, todo mundo é recalculado automaticamente e nada fica desatualizado.
+ * são calculadas na hora de montar a resposta. Assim, se a data da prova mudar,
+ * todo mundo é recalculado automaticamente e nada fica desatualizado.
  */
 @Entity
 public class Inscricao {
@@ -38,7 +37,7 @@ public class Inscricao {
 
     /**
      * Chave de negócio: já chega normalizado (minúsculas, sem espaços nas pontas).
-     * unique = true cria uma restrição no banco, que é a última barreira contra e-mail repetido.
+     * unique = true cria uma restrição no banco, a última barreira contra e-mail repetido.
      */
     @Column(nullable = false, unique = true, length = 254)
     private String email;
@@ -57,20 +56,20 @@ public class Inscricao {
     protected Inscricao() {
     }
 
-    /** Nova inscrição, sempre a partir de dados já validados pelas regras. */
-    public Inscricao(DadosValidos dados) {
-        this.email = dados.email();
-        atualizar(dados);
+    /** Nova inscrição, sempre com dados já validados pelo InscricaoValidator. */
+    public Inscricao(String nome, String email, LocalDate dataNascimento, Percurso percurso) {
+        this.email = email;
+        atualizar(nome, dataNascimento, percurso);
     }
 
     /**
-     * Usado na edição. Repare que o e-mail NÃO é alterado aqui: ele é imutável.
+     * Usado na edição. Repare que não recebe e-mail: ele é imutável.
      * Não existe setEmail nesta classe, então não tem como trocá-lo por engano.
      */
-    public void atualizar(DadosValidos dados) {
-        this.nome = dados.nome();
-        this.dataNascimento = dados.dataNascimento();
-        this.percurso = dados.percurso();
+    public void atualizar(String nome, LocalDate dataNascimento, Percurso percurso) {
+        this.nome = nome;
+        this.dataNascimento = dataNascimento;
+        this.percurso = percurso;
     }
 
     public String getNome() {

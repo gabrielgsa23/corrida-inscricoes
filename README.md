@@ -58,14 +58,18 @@ curl -i -X POST localhost:8080/api/inscricoes -H "Content-Type: application/json
 
 Tudo em `backend/src/main/java/br/com/corrida/`:
 
-| Arquivo | Papel |
-|---|---|
-| `InscricaoController` | Rotas HTTP do contrato. Sem regra de negócio |
-| `InscricaoService` | Casos de uso: cadastrar, listar, consultar, editar, cancelar, resumo |
-| `RegrasDaInscricao` | Normalização, validação e regulamento (Java puro, usado no cadastro e na edição) |
-| `Inscricao` / `InscricaoRepository` | Tabela no H2 e acesso ao banco |
-| `Contrato` | JSON de entrada e saída |
-| `InscricaoRecusada` / `TratamentoDeErros` | Recusas 400/404/409 e conversão de qualquer erro para `{ "mensagem" }` |
+| Pasta | Arquivos | Papel |
+|---|---|---|
+| `controller/` | `InscricaoController` | Rotas HTTP do contrato. Sem regra de negócio |
+| `service/` | `InscricaoService` | Casos de uso: cadastrar, listar, consultar, editar, cancelar, resumo |
+| `validator/` | `InscricaoValidator` | Normalização, validação dos campos e regulamento (Java puro, usado no cadastro e na edição) |
+| `repository/` | `InscricaoRepository` | Acesso ao banco (Spring Data JPA) |
+| `model/` | `Inscricao` | Entidade: a tabela no H2 |
+| `dto/` | `InscricaoRequest`, `InscricaoResponse`, `ResumoResponse`, `ErroResponse` | JSON de entrada e saída |
+| `enums/` | `Percurso`, `Categoria` | Valores fixos do regulamento; `Categoria.porIdade()` faz a tabela de categorias |
+| `exception/` | `DadosInvalidosException` (400), `InscricaoNaoEncontradaException` (404), `EmailJaCadastradoException` (409), `GlobalExceptionHandler` | Uma exceção por tipo de recusa e a conversão de qualquer erro para `{ "mensagem" }` |
+
+Os testes seguem as mesmas pastas: `validator/InscricaoValidatorTest` (regras, sem Spring), `repository/InscricaoRepositoryTest` (`@DataJpaTest` no H2) e `controller/InscricaoApiTest` (API de ponta a ponta com MockMvc).
 
 A data da prova fica só em `backend/src/main/resources/application.properties` (`corrida.data-prova`).
 
