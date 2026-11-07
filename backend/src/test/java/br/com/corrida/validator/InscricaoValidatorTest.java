@@ -17,44 +17,29 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-/**
- * Testes das regras puras, sem Spring: cada teste roda em milissegundos.
- *
- * A data da prova e o "hoje" ficam fixos AQUI, de propósito. Se alguém mudar o
- * application.properties, estes testes continuam conferindo as bordas do regulamento.
- */
 class InscricaoValidatorTest {
-
     private static final LocalDate PROVA = LocalDate.of(2027, 3, 14);
     private static final ZoneId FUSO = ZoneId.of("America/Sao_Paulo");
 
-    // "Hoje" congelado em 04/11/2026, para o resultado não mudar com o passar dos dias.
     private static final Clock HOJE_FIXO = Clock.fixed(
             LocalDate.of(2026, 11, 4).atStartOfDay(FUSO).toInstant(), FUSO);
 
     private final InscricaoValidator validator = new InscricaoValidator(PROVA, HOJE_FIXO);
 
-    // ---------- idade e categoria nas bordas ----------
-
-    /**
-     * Cada linha é um caso: nascimento, idade esperada na prova e categoria esperada.
-     * Para cada borda há o "dia antes do aniversário" e o "dia do aniversário".
-     */
     @ParameterizedTest(name = "nascido em {0}: {1} anos, {2}")
     @CsvSource({
-            // véspera / no dia / dia seguinte da prova
             "2000-03-15, 26, ADULTO",
             "2000-03-14, 27, ADULTO",
             "2000-03-13, 27, ADULTO",
-            // borda 13/14 (idade mínima): quem faz 14 no dia da prova é Juvenil
+
             "2013-03-14, 14, JUVENIL",
-            // borda 17/18
+
             "2009-03-15, 17, JUVENIL",
             "2009-03-14, 18, ADULTO",
-            // borda 39/40
+
             "1987-03-15, 39, ADULTO",
             "1987-03-14, 40, MASTER",
-            // borda 59/60
+
             "1967-03-15, 59, MASTER",
             "1967-03-14, 60, SENIOR",
     })
@@ -67,8 +52,6 @@ class InscricaoValidatorTest {
         assertEquals(categoriaEsperada, Categoria.porIdade(idade));
     }
 
-    // ---------- idade mínima e 10 km ----------
-
     @Test
     void recusaQuemTem13AnosNaProva() {
         assertEquals("A idade mínima para participar é 14 anos.", recusaNascimento("2013-03-15", "KM_5"));
@@ -76,7 +59,6 @@ class InscricaoValidatorTest {
 
     @Test
     void idadeMinimaTemPrecedenciaSobreO10km() {
-        // 13 anos pedindo 10 km: a mensagem tem que ser a da idade mínima.
         assertEquals("A idade mínima para participar é 14 anos.", recusaNascimento("2013-03-15", "KM_10"));
     }
 
@@ -90,8 +72,6 @@ class InscricaoValidatorTest {
     void aceita10kmParaQuemFaz18NoDiaDaProva() {
         assertEquals(Percurso.KM_10, validar("Ana Souza", "ana@email.com", "2009-03-14", "KM_10").percurso());
     }
-
-    // ---------- datas: bissexto, futura, dia inexistente, trim ----------
 
     @Test
     void anoBissextoAceita29DeFevereiro() {
@@ -138,8 +118,8 @@ class InscricaoValidatorTest {
     @Test
     void dataDeHojeOuFuturaERecusada() {
         String mensagem = "A data de nascimento deve ser anterior a hoje.";
-        assertEquals(mensagem, recusaNascimento("2026-11-04", "KM_5")); // hoje
-        assertEquals(mensagem, recusaNascimento("2030-01-01", "KM_5")); // futuro
+        assertEquals(mensagem, recusaNascimento("2026-11-04", "KM_5"));
+        assertEquals(mensagem, recusaNascimento("2030-01-01", "KM_5"));
     }
 
     @Test
@@ -152,8 +132,6 @@ class InscricaoValidatorTest {
         assertEquals(LocalDate.of(1990, 5, 20),
                 validar("Ana Souza", "ana@email.com", "  1990-05-20  ", "KM_5").dataNascimento());
     }
-
-    // ---------- nome ----------
 
     @Test
     void normalizaNomeEEmail() {
@@ -184,8 +162,6 @@ class InscricaoValidatorTest {
         assertEquals("Ana Souza Lima", validar("Ana\tSouza\n  Lima", "ana@email.com", "1990-05-20", "KM_5").nome());
     }
 
-    // ---------- campos obrigatórios e percurso ----------
-
     @Test
     void camposAusentesSaoRecusados() {
         assertEquals("O nome é obrigatório.", recusa(null, "ana@email.com", "1990-05-20", "KM_5"));
@@ -201,23 +177,21 @@ class InscricaoValidatorTest {
         assertEquals(mensagem, recusa("Ana Souza", "ana@email.com", "1990-05-20", "km_5"));
     }
 
-    // ---------- e-mail ----------
-
     @ParameterizedTest(name = "e-mail recusado: {0}")
     @ValueSource(strings = {
-            "ana@email",             // sem terminação
-            "ana email.com",         // sem @
-            ".ana@email.com",        // começa com ponto
-            "ana.@email.com",        // ponto antes do @
-            "ana..souza@email.com",  // dois pontos seguidos
-            "ana@.email.com",        // domínio começa com ponto
-            "ana@email..com",        // dois pontos seguidos no domínio
-            "ana@-email.com",        // hífen no começo do rótulo
-            "ana@email-.com",        // hífen no fim do rótulo
-            "@email.com",            // sem parte local
-            "ana@@email.com",        // dois @
-            "ana@email.c",           // terminação com 1 letra
-            "ana souza@email.com",   // espaço no meio
+            "ana@email",
+            "ana email.com",
+            ".ana@email.com",
+            "ana.@email.com",
+            "ana..souza@email.com",
+            "ana@.email.com",
+            "ana@email..com",
+            "ana@-email.com",
+            "ana@email-.com",
+            "@email.com",
+            "ana@@email.com",
+            "ana@email.c",
+            "ana souza@email.com",
     })
     void emailForaDoFormatoERecusado(String email) {
         assertEquals("Informe um e-mail válido.", recusa("Ana Souza", email, "1990-05-20", "KM_5"));
@@ -240,7 +214,6 @@ class InscricaoValidatorTest {
     void emailEmMinusculasNaoDependeDoIdiomaDoComputador() {
         Locale original = Locale.getDefault();
         try {
-            // No turco, "I".toLowerCase() sem Locale.ROOT daria "ı" (i sem ponto).
             Locale.setDefault(Locale.forLanguageTag("tr-TR"));
             assertEquals("info@email.com", InscricaoValidator.normalizarEmail("INFO@EMAIL.COM"));
         } finally {
@@ -248,11 +221,9 @@ class InscricaoValidatorTest {
         }
     }
 
-    // ---------- texto copiado da web ----------
-
     @Test
     void espacoNaoSeparavelEhRemovidoDasPontasDeTodosOsCampos() {
-        String nbsp = " "; // o espaço que o trim() do Java não enxerga
+        String nbsp = " ";
         DadosValidos dados = validar(
                 nbsp + "Ana" + nbsp + "Souza" + nbsp,
                 nbsp + "Ana@Email.com" + nbsp,
@@ -265,13 +236,10 @@ class InscricaoValidatorTest {
         assertEquals(Percurso.KM_5, dados.percurso());
     }
 
-    // ---------- auxiliares ----------
-
     private DadosValidos validar(String nome, String email, String nascimento, String percurso) {
         return validator.validar(new InscricaoRequest(nome, email, nascimento, percurso), email);
     }
 
-    /** Valida e devolve a mensagem da recusa (o teste falha se não houver recusa). */
     private String recusa(String nome, String email, String nascimento, String percurso) {
         return assertThrows(DadosInvalidosException.class,
                 () -> validar(nome, email, nascimento, percurso)).getMessage();

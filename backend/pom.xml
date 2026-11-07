@@ -1,18 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  pom.xml é o "package.json" do Maven: diz o nome do projeto, a versão do Java
-  e quais bibliotecas (dependências) o projeto usa.
--->
+
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!--
-      Herdar do starter-parent do Spring Boot traz as versões de todas as
-      bibliotecas já combinadas entre si. Por isso as dependências abaixo
-      não têm <version>: quem decide é o Spring Boot 3.5.14.
-    -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -31,27 +23,23 @@
     </properties>
 
     <dependencies>
-        <!-- Servidor web (Tomcat embutido), controllers REST e conversão de JSON (Jackson). -->
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- JPA/Hibernate: transforma a classe Inscricao em tabela e gera o SQL por nós. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- H2: banco SQL que roda dentro da própria aplicação, sem instalar nada.
-             "runtime" porque o código nunca importa classes do H2, só usa via JPA. -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- JUnit 5, AssertJ e MockMvc. "test": só existe na hora de rodar os testes. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -61,7 +49,7 @@
 
     <build>
         <plugins>
-            <!-- Permite "./mvnw spring-boot:run" e gera o .jar executável. -->
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

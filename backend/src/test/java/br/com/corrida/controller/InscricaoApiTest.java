@@ -19,22 +19,15 @@ import org.springframework.test.json.JsonCompareMode;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-/**
- * Testes da API de ponta a ponta: sobe a aplicação inteira (com o H2) e faz
- * requisições HTTP simuladas com o MockMvc, conferindo status e JSON.
- * É o roteiro do "Antes de entregar" do enunciado, só que automático.
- */
 @SpringBootTest
 @AutoConfigureMockMvc
 class InscricaoApiTest {
-
     @Autowired
     private MockMvc mvc;
 
     @Autowired
     private InscricaoRepository repository;
 
-    // A aplicação sobe uma vez para todos os testes, então limpamos o banco antes de cada um.
     @BeforeEach
     void limparBanco() {
         repository.deleteAll();
@@ -103,7 +96,6 @@ class InscricaoApiTest {
                 .andExpect(jsonPath("$[0].categoria").value("SENIOR"))
                 .andExpect(jsonPath("$[1].email").value("joao+corrida@gmail.com"));
 
-        // O + do e-mail funciona na URL da consulta.
         mvc.perform(get("/api/inscricoes/joao+corrida@gmail.com"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.idadeNaProva").value(27));
@@ -114,7 +106,6 @@ class InscricaoApiTest {
         cadastrar("Ana Souza", "ana@email.com", "1990-05-20", "KM_10");
         cadastrar("Bruno Lima", "bruno@email.com", "1985-01-01", "KM_5");
 
-        // Mesmo mandando outro e-mail no corpo, o e-mail da inscrição não muda.
         editar("ANA@email.com", "Ana Maria Souza", "outro@email.com", "1987-03-14", "KM_5")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("ana@email.com"))
@@ -132,7 +123,7 @@ class InscricaoApiTest {
 
     @Test
     void edicaoRecusadaNaoAlteraNada() throws Exception {
-        cadastrar("Bruno Lima", "bruno@email.com", "2009-03-15", "KM_5"); // 17 anos na prova
+        cadastrar("Bruno Lima", "bruno@email.com", "2009-03-15", "KM_5");
 
         editar("bruno@email.com", "Bruno Alterado", "bruno@email.com", "2009-03-15", "KM_10")
                 .andExpect(status().isBadRequest())
@@ -155,7 +146,6 @@ class InscricaoApiTest {
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        // Cancelar de novo (ou alguém que não existe) não mexe nos demais.
         mvc.perform(delete("/api/inscricoes/ana@email.com"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.mensagem").value("Não existe inscrição ativa para este e-mail."));
@@ -189,12 +179,10 @@ class InscricaoApiTest {
 
     @Test
     void numeroOuListaNoLugarDeTextoNuncaDevolvem500() throws Exception {
-        // Número onde se espera texto: o Jackson converte para "123" e a validação recusa o nome.
         enviar("{\"nome\": 123, \"email\": \"ana@email.com\", \"dataNascimento\": \"1990-05-20\", \"percurso\": \"KM_5\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.mensagem").value("O nome deve conter apenas letras, espaços, apóstrofos e hífens."));
 
-        // Lista onde se espera texto: não dá para converter, então o corpo é considerado inválido.
         enviar("{\"nome\": [1, 2], \"email\": \"ana@email.com\", \"dataNascimento\": \"1990-05-20\", \"percurso\": \"KM_5\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.mensagem").value("O corpo da requisição está vazio ou não é um JSON válido."));
@@ -202,7 +190,6 @@ class InscricaoApiTest {
 
     @Test
     void camposAMaisNoJsonSaoIgnoradosEIdadeECategoriaSaoSempreCalculadas() throws Exception {
-        // O cliente tenta impor categoria e idade: nada disso entra, o sistema calcula.
         enviar("{\"nome\": \"Ana Souza\", \"email\": \"ana@email.com\", \"dataNascimento\": \"1990-05-20\","
                 + " \"percurso\": \"KM_5\", \"categoria\": \"JUVENIL\", \"idadeNaProva\": 5, \"id\": 99}")
                 .andExpect(status().isCreated())
@@ -214,8 +201,6 @@ class InscricaoApiTest {
     void corpoNullDevolve400() throws Exception {
         enviar("null").andExpect(status().isBadRequest());
     }
-
-    // ---------- auxiliares ----------
 
     private ResultActions cadastrar(String nome, String email, String nascimento, String percurso) throws Exception {
         return mvc.perform(post("/api/inscricoes")
@@ -230,7 +215,6 @@ class InscricaoApiTest {
                 .content(json(nome, emailNoCorpo, nascimento, percurso)));
     }
 
-    /** Envia um corpo JSON qualquer (inclusive inválido) para o cadastro. */
     private ResultActions enviar(String corpo) throws Exception {
         return mvc.perform(post("/api/inscricoes").contentType(MediaType.APPLICATION_JSON).content(corpo));
     }

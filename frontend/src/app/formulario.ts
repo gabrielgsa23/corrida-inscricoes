@@ -4,14 +4,6 @@ import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Api, mensagemDeErro, ROTULO_PERCURSO } from './api';
 
-/**
- * Formulário de cadastro (/nova) e de edição (/editar/:email). É o mesmo componente:
- * se veio e-mail na URL, está editando.
- *
- * Não há validação no front de propósito. Quem valida é o back-end, e a mensagem
- * de recusa que ele devolve ({ "mensagem": "..." }) aparece em cima do formulário.
- * Assim existe uma regra só, num lugar só.
- */
 @Component({
   selector: 'app-formulario',
   imports: [ReactiveFormsModule, RouterLink],
@@ -30,7 +22,6 @@ import { Api, mensagemDeErro, ROTULO_PERCURSO } from './api';
           <p class="erro-geral" role="alert">{{ erro }}</p>
         }
 
-        <!-- novalidate desliga a validação do navegador: quem valida é o back-end. -->
         <form [formGroup]="form" (ngSubmit)="salvar()" novalidate>
           <div class="campo">
             <label for="nome">Nome completo</label>
@@ -47,7 +38,6 @@ import { Api, mensagemDeErro, ROTULO_PERCURSO } from './api';
 
           <div class="campo">
             <label for="dataNascimento">Data de nascimento</label>
-            <!-- input type="date" já entrega o valor como aaaa-mm-dd, o formato do contrato. -->
             <input id="dataNascimento" type="date" formControlName="dataNascimento" />
           </div>
 
@@ -75,15 +65,13 @@ export class Formulario implements OnInit {
   private readonly api = inject(Api);
   private readonly router = inject(Router);
 
-  /** Vem do :email da rota de edição. Na rota /nova fica undefined. */
   readonly email = input<string>();
 
   protected readonly erro = signal<string | null>(null);
   protected readonly naoEncontrada = signal(false);
-  protected readonly enviando = signal(false); // evita clique duplo no botão
+  protected readonly enviando = signal(false);
   protected readonly rotulos = ROTULO_PERCURSO;
 
-  // Formulário reativo com os quatro campos do contrato.
   protected readonly form = inject(NonNullableFormBuilder).group({
     nome: '',
     email: '',
@@ -91,7 +79,6 @@ export class Formulario implements OnInit {
     percurso: '',
   });
 
-  /** Na edição, busca a inscrição atual no back-end (GET /api/inscricoes/{email}) e preenche os campos. */
   async ngOnInit(): Promise<void> {
     const email = this.email();
     if (!email) return;
@@ -100,11 +87,11 @@ export class Formulario implements OnInit {
       const atual = await this.api.consultar(email);
       this.form.setValue({
         nome: atual.nome,
-        email: atual.email, // o e-mail já normalizado que o back-end guardou
+        email: atual.email,
         dataNascimento: atual.dataNascimento,
         percurso: atual.percurso,
       });
-      this.form.controls.email.disable(); // e-mail imutável
+      this.form.controls.email.disable();
     } catch (e) {
       if (e instanceof HttpErrorResponse && e.status === 404) {
         this.naoEncontrada.set(true);
@@ -114,9 +101,7 @@ export class Formulario implements OnInit {
     }
   }
 
-  /** POST (cadastro) ou PUT (edição). Se o back-end recusar, mostra a mensagem e mantém o que foi digitado. */
   protected async salvar(): Promise<void> {
-    // getRawValue inclui o campo desabilitado (e-mail); na edição o back-end ignora ele.
     const dados = this.form.getRawValue();
     const email = this.email();
 

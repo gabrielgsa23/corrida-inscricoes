@@ -14,15 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
-/**
- * Testa só a camada de banco, no próprio H2 em memória.
- *
- * @DataJpaTest sobe apenas o JPA e o repository (sem controller nem service) e desfaz
- * tudo ao fim de cada teste, então um teste não enxerga o que o outro gravou.
- */
 @DataJpaTest
 class InscricaoRepositoryTest {
-
     @Autowired
     private InscricaoRepository repository;
 
@@ -50,7 +43,6 @@ class InscricaoRepositoryTest {
 
     @Test
     void bancoRecusaEmailRepetido() {
-        // A restrição unique da coluna é a última barreira, mesmo que o service falhe.
         repository.saveAndFlush(inscricao("ana@email.com", Percurso.KM_5));
 
         assertThrows(DataIntegrityViolationException.class,
